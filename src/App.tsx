@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import DeviceRow from "./components/DeviceRow";
 import ErrorBanner from "./components/ErrorBanner";
 import Meter from "./components/Meter";
@@ -150,58 +150,63 @@ export default function App() {
   );
 
   return (
-    <main className="app">
+    <main className="app" data-running={running || undefined}>
       <header className="head">
         <span className="brand">FAN</span>
-        <SettingsPopover
-          settings={settings}
-          onChange={async (patch) => {
-            const next = { ...settings, ...patch };
-            setSettings(next);
-            try {
-              await api.setSettings(next);
-            } catch (e) {
-              setError(api.errText(e));
-            }
-          }}
-        />
+        <div className="head-actions">
+          <button
+            className="sync"
+            data-spin={syncing || undefined}
+            disabled={syncing}
+            title="Sync"
+            onClick={() => void sync()}
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+              <polyline points="21 3 21 9 15 9" />
+            </svg>
+          </button>
+          <SettingsPopover
+            settings={settings}
+            onChange={async (patch) => {
+              const next = { ...settings, ...patch };
+              setSettings(next);
+              try {
+                await api.setSettings(next);
+              } catch (e) {
+                setError(api.errText(e));
+              }
+            }}
+          />
+        </div>
       </header>
 
       {error && (
         <ErrorBanner text={error} onDismiss={() => setError(null)} />
       )}
 
-      <div className="source">
+      <section
+        className="source"
+        style={{ "--lvl": running ? levels.source : 0 } as CSSProperties}
+      >
         <span className="label">Source</span>
-        <span className="name">{source?.name ?? stats.source_name ?? "\u2014"}</span>
-        <Meter level={levels.source} wide />
-        <button
-          className="sync"
-          data-spin={syncing || undefined}
-          disabled={syncing}
-          title="Sync with Windows"
-          onClick={() => void sync()}
-        >
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-            <polyline points="21 3 21 9 15 9" />
-          </svg>
-        </button>
-      </div>
+        <p className="name">{source?.name ?? stats.source_name ?? "\u2014"}</p>
+        <Meter level={levels.source} variant="hero" />
+      </section>
 
       <div className="list">
         {outputs.length === 0 ? (
-          <p className="empty">No outputs</p>
+          <p className="empty">None</p>
         ) : (
           outputs.map((d) => (
             <DeviceRow
@@ -234,7 +239,7 @@ export default function App() {
 
       <footer className="foot">
         <button
-          className="primary"
+          className="go"
           data-running={running || undefined}
           disabled={busy || (!running && config.outputs.length === 0)}
           onClick={async () => {
@@ -257,13 +262,20 @@ export default function App() {
             }
           }}
         >
-          {running ? "Stop" : "Start"}
+          {running && (
+            <span
+              className="go-fill"
+              data-hot={levels.source > 0.96 || undefined}
+              style={{ transform: `scaleX(${levels.source.toFixed(3)})` }}
+            />
+          )}
+          <span className="go-label">{running ? "Stop" : "Start"}</span>
         </button>
-        <span className="status">
-          {running
-            ? `${latency} ms · ${drops} drops`
-            : `${config.outputs.length} selected`}
-        </span>
+        {running && (
+          <span className="status">
+            {latency} ms · {drops} drops
+          </span>
+        )}
       </footer>
     </main>
   );

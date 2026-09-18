@@ -1,12 +1,12 @@
 export default function Meter({
   level,
-  wide = false,
+  variant = "tile",
 }: {
   level: number;
-  wide?: boolean;
+  variant?: "tile" | "hero";
 }) {
   return (
-    <div className={wide ? "meter meter-wide" : "meter"}>
+    <div className={variant === "hero" ? "meter meter-hero" : "meter"}>
       <div
         className="meter-fill"
         data-hot={level > 0.96 || undefined}

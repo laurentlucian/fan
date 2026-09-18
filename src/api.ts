@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import * as mock from "./mock";
 import type {
   AppSettings,
   AppState,
@@ -7,23 +8,32 @@ import type {
   EngineStats,
 } from "./types";
 
-export const listDevices = () => invoke<DeviceInfo[]>("list_devices");
+const native = () => "__TAURI_INTERNALS__" in window;
 
-export const getState = () => invoke<AppState>("get_state");
+export const listDevices = () =>
+  native() ? invoke<DeviceInfo[]>("list_devices") : mock.listDevices();
+
+export const getState = () =>
+  native() ? invoke<AppState>("get_state") : mock.getState();
 
 export const saveConfig = (config: EngineConfig) =>
-  invoke<void>("save_config", { config });
+  native() ? invoke<void>("save_config", { config }) : mock.saveConfig(config);
 
-export const start = (config: EngineConfig) => invoke<void>("start", { config });
+export const start = (config: EngineConfig) =>
+  native() ? invoke<void>("start", { config }) : mock.start(config);
 
-export const stop = () => invoke<void>("stop");
+export const stop = () => (native() ? invoke<void>("stop") : mock.stop());
 
-export const getStats = () => invoke<EngineStats>("get_stats");
+export const getStats = () =>
+  native() ? invoke<EngineStats>("get_stats") : mock.getStats();
 
-export const getSettings = () => invoke<AppSettings>("get_settings");
+export const getSettings = () =>
+  native() ? invoke<AppSettings>("get_settings") : mock.getSettings();
 
 export const setSettings = (settings: AppSettings) =>
-  invoke<void>("set_settings", { settings });
+  native()
+    ? invoke<void>("set_settings", { settings })
+    : mock.setSettings(settings);
 
 export function errText(e: unknown): string {
   if (typeof e === "string") return e;

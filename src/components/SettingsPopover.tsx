@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import type { AppSettings } from "../types";
 
 const ROWS: [keyof AppSettings, string][] = [
-  ["autostart", "Launch at login"],
-  ["start_on_launch", "Start on launch"],
-  ["close_to_tray", "Close to tray"],
+  ["autostart", "Login"],
+  ["start_on_launch", "Auto-start"],
+  ["close_to_tray", "Tray"],
 ];
 
 export default function SettingsPopover({
@@ -40,8 +40,8 @@ export default function SettingsPopover({
         onClick={() => setOpen((v) => !v)}
       >
         <svg
-          width="14"
-          height="14"
+          width="20"
+          height="20"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

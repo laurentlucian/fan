@@ -14,11 +14,11 @@
       {
         "title": "FAN",
         "label": "main",
-        "width": 620,
-        "height": 560,
+        "width": 720,
+        "height": 760,
         "resizable": true,
-        "minWidth": 460,
-        "minHeight": 380
+        "minWidth": 520,
+        "minHeight": 560
       }
     ],
     "security": {
