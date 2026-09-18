@@ -94,7 +94,11 @@ fn try_run(params: CaptureParams) -> Result<()> {
     let wait_ms = ((period_frames as f64 / format.rate as f64) * 1000.0)
         .ceil()
         .max(2.0) as u32;
-    let mut last_emit = Instant::now();
+    // Frames handed to the rings vs. frames real time has called for. Tracking both
+    // is what stops a timed-out wait from injecting silence that a late packet then
+    // also covers -- that double count is permanent ring backlog, i.e. latency.
+    let started = Instant::now();
+    let mut delivered: u64 = 0;
 
     while !engine.stop.load(Ordering::Relaxed) {
         drain_commands(&cmds, &mut sinks);
@@ -125,20 +129,22 @@ fn try_run(params: CaptureParams) -> Result<()> {
                 }
                 raise_peak(&engine.source_peak, peak);
                 distribute(&mut sinks, data);
+                delivered += frames as u64;
                 emitted = true;
             }
         }
 
+        let expected = (started.elapsed().as_secs_f64() * format.rate as f64) as u64;
         if emitted {
-            last_emit = Instant::now();
+            // Audio is flowing: never carry a wall-clock deficit against the device clock.
+            delivered = delivered.max(expected);
         } else {
-            // Loopback goes silent without events; keep the render threads fed.
-            let elapsed = last_emit.elapsed().as_secs_f64();
-            let frames = (elapsed * format.rate as f64) as usize;
-            if frames > 0 {
-                let frames = frames.min(buffer_frames);
+            // Loopback goes silent without events; top up only the real deficit.
+            let deficit = expected.saturating_sub(delivered) as usize;
+            if deficit >= period_frames {
+                let frames = deficit.min(buffer_frames);
                 distribute(&mut sinks, &silence[..frames * channels]);
-                last_emit = Instant::now();
+                delivered += frames as u64;
             }
         }
     }

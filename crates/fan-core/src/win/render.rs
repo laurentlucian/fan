@@ -27,6 +27,10 @@ const DRIFT_INTERVAL: Duration = Duration::from_millis(250);
 /// Ring fill to hold, in render device periods.
 const TARGET_PERIODS: f64 = 2.0;
 
+/// Ring excess over target that triggers a one-shot drop instead of waiting for
+/// the PI loop. At MAX_ADJUST (0.1 %) draining 1 s of backlog would take ~17 min.
+const RESYNC_MS: f64 = 50.0;
+
 pub(crate) struct RenderParams {
     pub(crate) device_id: String,
     pub(crate) src: Format,
@@ -174,7 +178,18 @@ fn try_run(params: RenderParams) -> Result<()> {
         let dt = now.duration_since(last_drift);
         if dt >= DRIFT_INTERVAL {
             last_drift = now;
-            let fill = (consumer.slots() / src.channels) as f64;
+            let mut fill = (consumer.slots() / src.channels) as f64;
+            let resync = RESYNC_MS * src.rate as f64 / 1000.0;
+            if fill - target > resync {
+                drop_samples(
+                    &mut consumer,
+                    &mut stage,
+                    (fill - target) as usize * src.channels,
+                );
+                shared.overruns.fetch_add(1, Ordering::Relaxed);
+                drift.reset();
+                fill = (consumer.slots() / src.channels) as f64;
+            }
             let adjust = drift.update(fill - target, target, dt.as_secs_f64());
             let _ = resampler.set_resample_ratio(base_ratio * (1.0 + adjust), true);
             shared
@@ -204,7 +219,15 @@ fn target_frames(src: &Format, dst: &Format, period_frames: usize, delay_ms: u32
 
 /// Shrinking the offset is a one-shot step: discard that much of the ring.
 fn drop_frames(consumer: &mut Consumer<f32>, stage: &mut Stage, src: &Format, ms: f64) {
-    let mut remaining = (ms * src.rate as f64 / 1000.0) as usize * src.channels;
+    drop_samples(
+        consumer,
+        stage,
+        (ms * src.rate as f64 / 1000.0) as usize * src.channels,
+    )
+}
+
+/// Discard `samples` interleaved samples from the ring.
+fn drop_samples(consumer: &mut Consumer<f32>, stage: &mut Stage, mut remaining: usize) {
     while remaining > 0 {
         let chunk = remaining.min(stage.scratch.len());
         let (popped, _) = consumer.pop_partial_slice(&mut stage.scratch[..chunk]);
@@ -232,8 +255,15 @@ fn produce_chunk(
     let need = resampler.input_frames_next();
     let wanted = need * src.channels;
 
-    if !*primed && (consumer.slots() / src.channels) as f64 >= target {
-        *primed = true;
+    if !*primed {
+        let fill = (consumer.slots() / src.channels) as f64;
+        if fill >= target {
+            // Start at exactly target: a backlog inherited here is permanent latency.
+            if fill > target {
+                drop_samples(consumer, stage, (fill - target) as usize * src.channels);
+            }
+            *primed = true;
+        }
     }
 
     let Stage {
