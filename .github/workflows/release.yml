@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      - run: pnpm install --frozen-lockfile=false
+
+      - run: pnpm tauri build
+
+      - name: Stage installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Workspace root target/ when src-tauri is a workspace member, src-tauri/target/ otherwise.
+          installer=$(ls target/release/bundle/nsis/*-setup.exe src-tauri/target/release/bundle/nsis/*-setup.exe 2>/dev/null | head -n 1 || true)
+          test -n "$installer"
+          mkdir -p artifact
+          cp "$installer" artifact/FAN-Setup.exe
+
+      - name: Publish rolling release
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest artifact/FAN-Setup.exe \
+            --title "FAN — latest" \
+            --notes "Latest build from main." \
+            --latest

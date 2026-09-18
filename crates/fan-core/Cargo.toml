@@ -1,0 +1,31 @@
+[package]
+name = "fan-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Fan-out one Windows audio stream to many output devices"
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+parking_lot = { workspace = true }
+log = { workspace = true }
+rubato = "0.16"
+rtrb = "0.3"
+
+[target.'cfg(windows)'.dependencies]
+windows-core = "0.58"
+windows = { version = "0.58", features = [
+  "implement",
+  "Win32_Foundation",
+  "Win32_Media_Audio",
+  "Win32_Media_KernelStreaming",
+  "Win32_Media_Multimedia",
+  "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_Threading",
+  "Win32_System_Variant",
+  "Win32_Devices_FunctionDiscovery",
+  "Win32_Security",
+  "Win32_UI_Shell_PropertiesSystem",
+] }

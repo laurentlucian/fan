@@ -1,0 +1,74 @@
+:root {
+  --bg: #0e1013;
+  --panel: #14171c;
+  --raised: #1a1e24;
+  --line: #24292f;
+  --line-soft: #1c2026;
+  --text: #e6e9ee;
+  --dim: #8b94a0;
+  --faint: #5d656f;
+  --accent: #4d7cfe;
+  --accent-dim: #2e4a99;
+  --danger: #e5484d;
+  --radius: 5px;
+
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--text);
+  background: var(--bg);
+
+  -webkit-font-smoothing: antialiased;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  overflow: hidden;
+  user-select: none;
+  cursor: default;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: default;
+}
+
+input {
+  font: inherit;
+  color: inherit;
+}
+
+::selection {
+  background: var(--accent-dim);
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a2f37;
+  border-radius: 9px;
+  border: 2px solid var(--bg);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #39404a;
+}
