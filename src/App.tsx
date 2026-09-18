@@ -36,28 +36,39 @@ export default function App() {
   const [levels, setLevels] = useState<Levels>(NO_LEVELS);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const pending = useRef<EngineConfig | null>(null);
   const saveTimer = useRef<number | undefined>(undefined);
   // Bumped on every start/stop so a stats reply in flight can't revive old state.
   const epoch = useRef(0);
 
+  // Re-reads the device list so a default-output change made in Windows shows up.
+  const sync = async () => {
+    setSyncing(true);
+    try {
+      const list = await api.listDevices();
+      setDevices(list);
+      const s = await api.getState();
+      setSettings(s.settings);
+      setRunning(s.running);
+      // The new default is the source; it can't also be a fan-out target.
+      const dflt = list.find((d) => d.is_default)?.id;
+      const kept = s.config.outputs.filter((o) => o.device_id !== dflt);
+      setConfig({ ...s.config, outputs: kept });
+      if (kept.length !== s.config.outputs.length) {
+        await api.saveConfig({ ...s.config, outputs: kept });
+      }
+      setError(null);
+    } catch (e) {
+      setError(api.errText(e));
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   useEffect(() => {
-    (async () => {
-      try {
-        setDevices(await api.listDevices());
-      } catch (e) {
-        setError(api.errText(e));
-      }
-      try {
-        const s = await api.getState();
-        setConfig(s.config);
-        setSettings(s.settings);
-        setRunning(s.running);
-      } catch (e) {
-        setError((prev) => prev ?? api.errText(e));
-      }
-    })();
+    void sync();
   }, []);
 
   useEffect(() => {
@@ -162,8 +173,30 @@ export default function App() {
 
       <div className="source">
         <span className="label">Source</span>
-        <span className="name">{source?.name ?? stats.source_name ?? "—"}</span>
+        <span className="name">{source?.name ?? stats.source_name ?? "\u2014"}</span>
         <Meter level={levels.source} wide />
+        <button
+          className="sync"
+          data-spin={syncing || undefined}
+          disabled={syncing}
+          title="Sync with Windows"
+          onClick={() => void sync()}
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+            <polyline points="21 3 21 9 15 9" />
+          </svg>
+        </button>
       </div>
 
       <div className="list">
